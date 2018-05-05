@@ -1,0 +1,125 @@
+C51 COMPILER V9.56.0.0   MAIN                                                              03/18/2018 20:29:01 PAGE 1   
+
+
+C51 COMPILER V9.56.0.0, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN .\Objects\main.obj
+COMPILER INVOKED BY: D:\Keil_v5\C51\BIN\C51.EXE main.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\Listings\main
+                    -.lst) TABS(2) OBJECT(.\Objects\main.obj)
+
+line level    source
+
+   1          #include "stc15f2k60s2.h"
+   2          #include "absacc.h"
+   3          
+   4          #define setkeyboard(x) P4=((x&0x80)>>3)|((x&0x40)>>4);P3=x
+   5          #define getkeyboard ((P4&0x10)<<3)|((P4&0x04)<<4)|(P3&0x3f)
+   6          
+   7          unsigned char read_key_data,trg,cont;
+   8          sbit buzzer=P0^6;
+   9          unsigned char smg_com[8]={0x01,0x02,0x04,0x08,0x10,0x20,0x40,0x80};
+  10          unsigned char smg_duan[10]={0x3F,0x06,0x5B,0x4F,0x66,0x6D,0x7D,0x07,0x7F,0x6F};
+  11                                  //   0    1    2    3    4    5    6    7    8    9  
+  12          bit key_flag;
+  13          
+  14          void tm1_isr() interrupt 3 using 2
+  15          {
+  16   1        
+  17   1      }
+  18          
+  19          void tm0_isr() interrupt 1 using 1
+  20          {
+  21   1         static unsigned char i,smg_count,key_count;
+  22   1        smg_count++;key_count++;
+  23   1        if(key_count==10)
+  24   1        {
+  25   2          key_count=0;
+  26   2          key_flag=1;
+  27   2        }
+  28   1        
+  29   1      
+  30   1        if(smg_count==3)
+  31   1        {
+  32   2          smg_count=0;
+  33   2          P2=0xc0;P0=0;P2=0x00;
+  34   2          P2=0xe0;P0=~smg_duan[i];P2=0x00;    
+  35   2          P2=0xc0;P0=smg_com[i];P2=0x00;
+  36   2          i++;
+  37   2          if(i==8)i=0;
+  38   2        }
+  39   1      }
+  40          
+  41          
+  42          void main()
+  43          {
+  44   1        AUXR |= 0xC0;   //?????1T??
+  45   1        TMOD &= 0xFF;   //???????
+  46   1        TL0 = 0xCD;   //??????
+  47   1        TH0 = 0xD4;   //??????
+  48   1        TF0 = 0;    //??TF0??
+  49   1        TR0 = 1;    //???0????
+  50   1        ET0 = 1;
+  51   1        TL1 = 0xAE;   //??????
+  52   1        TH1 = 0xFB;   //??????
+  53   1        TF1 = 0;    //??TF1??
+  54   1        TR1 = 1;    //???1????
+C51 COMPILER V9.56.0.0   MAIN                                                              03/18/2018 20:29:01 PAGE 2   
+
+  55   1        ET1 = 1;
+  56   1        EA = 1;
+  57   1        
+  58   1        P2=0xa0;buzzer=0;P2=0x00;
+  59   1        while(1)
+  60   1        {
+  61   2      //  XBYTE[0XC000]=0X00;
+  62   2      //  XBYTE[0XE000]=~smg_duan[i];
+  63   2      //  XBYTE[0XC000]=(1<<i);
+  64   2      //  if(++i==8)
+  65   2      //  {
+  66   2      //    i=0;
+  67   2      //  }
+  68   2          if(key_flag)
+  69   2          {
+  70   3            key_flag=0;
+  71   3            setkeyboard(0x0f);
+  72   3            read_key_data|=getkeyboard;
+  73   3            setkeyboard(0xf0);
+  74   3            read_key_data=(read_key_data|getkeyboard)^0xff;
+  75   3            trg=read_key_data&(read_key_data^cont);
+  76   3            cont=read_key_data;
+  77   3            switch(trg)
+  78   3            {
+  79   4              case 0x88:P2=0x80;P0=0x55;P2=0x00;break;  //s4
+  80   4              case 0x84:P2=0x80;P0=0xaa;P2=0x00;break;  //s5
+  81   4              case 0x82:P2=0xa0;buzzer=1;P2=0x00;break; //s6
+  82   4              case 0x81:P2=0xa0;buzzer=0;P2=0x00;break; //s7
+  83   4              case 0x48:break;  //s8
+  84   4              case 0x44:break;  //s9
+  85   4              case 0x42:break;  //s10
+  86   4              case 0x41:break;  //s11
+  87   4              case 0x28:break;  //s12
+  88   4              case 0x24:break;  //s13
+  89   4              case 0x22:break;  //s14
+  90   4              case 0x21:break;  //s15
+  91   4              case 0x18:break;  //s16
+  92   4              case 0x14:break;  //s17
+  93   4              case 0x12:break;  //s18
+  94   4              case 0x11:break;  //s19
+  95   4              
+  96   4            }
+  97   3          }
+  98   2        }
+  99   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    250    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     24    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      1    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

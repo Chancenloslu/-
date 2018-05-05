@@ -1,0 +1,268 @@
+C51 COMPILER V9.56.0.0   MAIN1                                                             03/23/2018 22:40:46 PAGE 1   
+
+
+C51 COMPILER V9.56.0.0, COMPILATION OF MODULE MAIN1
+OBJECT MODULE PLACED IN .\Objects\main1.obj
+COMPILER INVOKED BY: D:\Keil_v5\C51\BIN\C51.EXE main1.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\Listings\mai
+                    -n1.lst) TABS(2) OBJECT(.\Objects\main1.obj)
+
+line level    source
+
+   1          #include "stc15f2k60s2.h"
+   2          #include "onewire.h"
+   3          
+   4          #define setkeyboard(x) P4=((x&0x80)>>3)|((x&0x40)>>4);P3=x
+   5          #define getkeyboard() ((P4&0x10)<<3)|((P4&0x04)<<4)|(P3&0x3f)
+   6          
+   7          
+   8          bit key_flag,set_flag,blink_flag,error_flag;
+   9          unsigned int L1_count;
+  10          unsigned char T_min,T_max,real_temprature,blink_value;
+  11          unsigned char set_count;set_temp_value;set_temp_index;
+  12          unsigned char display[8];set_temp[5]={0};
+  13          unsigned char smg_wei[8]={0x01,0x02,0x04,0x08,0x10,0x20,0x40,0x80};
+  14          unsigned char smg_duan[10]={0x3F,0x06,0x5B,0x4F,0x66,0x6D,0x7D,0x07,0x7F,0x6F};
+  15                                  //   0    1    2    3    4    5    6    7    8    9  
+  16          sbit buzzer=P0^6;
+  17          sbit relay=P0^4;
+  18          //-----------------------------------------------
+  19          
+  20          /* Timer1 interrupt routine */
+  21          void tm1_isr() interrupt 3 using 2
+  22          {
+  23   1        static unsigned char key_count,smg_count,i;
+  24   1        key_count++;smg_count++;
+  25   1        
+  26   1        if(key_count==10)
+  27   1        {
+  28   2          key_count=0;
+  29   2          key_flag=1;
+  30   2        }
+  31   1        if(smg_count==1)
+  32   1        {
+  33   2          smg_count=0;
+  34   2          
+  35   2          P2=0xc0;P0=0;P2=0;
+  36   2          P2=0xe0;P0=~display[i];P2=0;
+  37   2          P2=0xc0;P0=smg_wei[i];P2=0;
+  38   2          i++;
+  39   2          if(i==8)i=0;
+  40   2        }
+  41   1      }
+  42          
+  43          //-----------------------------------------------
+  44          //-----------------------------------------------
+  45          
+  46          /* Timer0 interrupt routine */
+  47          void tm0_isr() interrupt 1 using 1
+  48          {
+  49   1        L1_count++;
+  50   1      
+  51   1        if(real_temprature<T_min)
+  52   1        {
+  53   2          if(L1_count>=800)
+  54   2          {
+C51 COMPILER V9.56.0.0   MAIN1                                                             03/23/2018 22:40:46 PAGE 2   
+
+  55   3            blink_flag=~blink_flag;
+  56   3            if(blink_flag)
+  57   3            {
+  58   4              P2=0x80;P0=~0x01;P2=0x00;
+  59   4            }
+  60   3            else
+  61   3            {
+  62   4              P2=0x80;P0=0xff;P2=0x00;
+  63   4            }
+  64   3            L1_count=0;
+  65   3          }
+  66   2          
+  67   2        }
+  68   1        else if(real_temprature<=T_max)
+  69   1        {
+  70   2          if(L1_count>=400)
+  71   2          {
+  72   3      
+  73   3            blink_flag=~blink_flag;
+  74   3            if(blink_flag)
+  75   3            {
+  76   4              P2=0x80;P0=~0x01;P2=0x00;
+  77   4            }
+  78   3            else
+  79   3            {
+  80   4              P2=0x80;P0=0xff;P2=0x00;
+  81   4            }
+  82   3            L1_count=0;
+  83   3          }
+  84   2        }
+  85   1        else
+  86   1        {
+  87   2          if(L1_count>=200)
+  88   2          {
+  89   3            blink_flag=~blink_flag;
+  90   3            if(blink_flag)
+  91   3            {
+  92   4              P2=0x80;P0=~0x01;P2=0x00;
+  93   4            }
+  94   3            else
+  95   3            {
+  96   4              P2=0x80;P0=0xff;P2=0x00;
+  97   4            }
+  98   3            L1_count=0;
+  99   3          }
+ 100   2        } 
+ 101   1      }
+ 102          
+ 103          //-----------------------------------------------
+ 104          void main()
+ 105          {
+ 106   1        unsigned char read_key_data,trg,cont;
+ 107   1        
+ 108   1        AUXR |= 0xC0;   //?????1T??
+ 109   1        TMOD &= 0xFF;   //???????
+ 110   1        TL0 = 0xCD;   //??????
+ 111   1        TH0 = 0xD4;   //??????
+ 112   1        TF0 = 0;    //??TF0??
+ 113   1        TR0 = 1;    //???0????
+ 114   1        TL1 = 0xCD;   //??????
+ 115   1        TH1 = 0xD4;   //??????
+ 116   1        TF1 = 0;    //??TF1??
+C51 COMPILER V9.56.0.0   MAIN1                                                             03/23/2018 22:40:46 PAGE 3   
+
+ 117   1        TR1 = 1;    //???1????
+ 118   1        ET0 = 1;
+ 119   1        ET1 = 1;
+ 120   1        EA = 1;
+ 121   1        
+ 122   1        T_min=20;
+ 123   1        T_max=30;
+ 124   1        P2=0xa0;buzzer=0;P2=0x00;
+ 125   1      
+ 126   1        while(1)
+ 127   1        {
+ 128   2          display[0]=0x40;display[3]=display[4]=0x00;
+ 129   2          if(set_temp_index>4)set_temp_index=1;
+ 130   2          
+ 131   2          
+ 132   2          
+ 133   2          if(key_flag)
+ 134   2          {
+ 135   3            key_flag=0;
+ 136   3            
+ 137   3            setkeyboard(0x0f);
+ 138   3            read_key_data=getkeyboard();
+ 139   3            setkeyboard(0xf0);
+ 140   3            read_key_data=(read_key_data|getkeyboard())^0xff;
+ 141   3            trg=read_key_data&(read_key_data^cont);
+ 142   3            cont=read_key_data;
+ 143   3            if(set_flag)
+ 144   3            {
+ 145   4              switch(trg)
+ 146   4              {
+ 147   5                  case 0x88:set_temp_value=9;set_temp_index++;break;    //s4
+ 148   5                  case 0x84:set_temp_value=6;set_temp_index++;break;    //s5
+ 149   5                  case 0x82:set_temp_value=3;set_temp_index++;break;    //s6
+ 150   5                  case 0x81:set_temp_value=0;set_temp_index++;break;    //s7
+ 151   5                  
+ 152   5                  case 0x44:set_temp_value=7;set_temp_index++;break;    //s9
+ 153   5                  case 0x42:set_temp_value=4;set_temp_index++;break;    //s10
+ 154   5                  case 0x41:set_temp_value=1;set_temp_index++;break;    //s11
+ 155   5                  case 0x28:set_temp[0]=0;set_temp[1]=0;set_temp[2]=0;set_temp[3]=0;set_temp[4]=0;set_temp_index=0;bre
+             -ak;    //s12
+ 156   5                  case 0x24:set_temp_value=8;set_temp_index++;break;    //s13
+ 157   5                  case 0x22:set_temp_value=5;set_temp_index++;break;    //s14
+ 158   5                  case 0x21:set_temp_value=2;set_temp_index++;break;    ///s15
+ 159   5                
+ 160   5                  
+ 161   5        //        case 0x18:P2=0xa0;P04=0;P2=0;break;   //s16
+ 162   5        //        case 0x14:P2=0xa0;P04=1;P2=0;break;   //s17
+ 163   5        //        case 0x12:P2=0x80;P0=0x55;P2=0;break;   //s18
+ 164   5        //        case 0x11:P2=0x80;P0=0xaa;P2=0;break;       //s19
+ 165   5              }
+ 166   4            } 
+ 167   3            switch(trg)
+ 168   3            {
+ 169   4              case 0x48:set_flag=1;set_count++;break;   //s8
+ 170   4            }
+ 171   3          }
+ 172   2          
+ 173   2          
+ 174   2          
+ 175   2          if(error_flag==0)
+ 176   2          {
+ 177   3            if(set_flag==0)     //mode 1
+C51 COMPILER V9.56.0.0   MAIN1                                                             03/23/2018 22:40:46 PAGE 4   
+
+ 178   3            {
+ 179   4              display[5]=0x00;display[2]=0x40;
+ 180   4              real_temprature=(unsigned char)rd_temprature_f();
+ 181   4              display[6]=smg_duan[real_temprature/10];
+ 182   4              display[7]=smg_duan[real_temprature%10];
+ 183   4              if(real_temprature<T_min)
+ 184   4              {
+ 185   5                display[1]=smg_duan[0];
+ 186   5                P2=0xa0;buzzer=0;relay=0;P2=0x00;
+ 187   5                
+ 188   5              }
+ 189   4              else if(real_temprature<=T_max)
+ 190   4              {
+ 191   5                display[1]=smg_duan[1];
+ 192   5                P2=0xa0;buzzer=0;relay=0;P2=0x00;
+ 193   5              }
+ 194   4              else
+ 195   4              {
+ 196   5                display[1]=smg_duan[2];
+ 197   5                P2=0xa0;buzzer=0;relay=1;P2=0x00;
+ 198   5              }
+ 199   4            }
+ 200   3          }
+ 201   2          if(set_flag)        //mode 2
+ 202   2          {
+ 203   3            display[1]=smg_duan[set_temp[1]];
+ 204   3            display[2]=smg_duan[set_temp[2]];
+ 205   3            display[5]=0x40;
+ 206   3            display[6]=smg_duan[set_temp[3]];
+ 207   3            display[7]=smg_duan[set_temp[4]];
+ 208   3            if(set_count==1)
+ 209   3            {
+ 210   4              set_temp[set_temp_index]=set_temp_value;
+ 211   4              
+ 212   4            }
+ 213   3            if(set_count==2)
+ 214   3            {
+ 215   4              T_min=set_temp[3]*10+set_temp[4];
+ 216   4              T_max=set_temp[1]*10+set_temp[2];
+ 217   4              if(T_max<T_min)
+ 218   4              {
+ 219   5                ET0=0;
+ 220   5                error_flag=1;
+ 221   5                P2=0x80;P0|=0xff;P01=0;P2=0;
+ 222   5              }
+ 223   4              else
+ 224   4              {
+ 225   5                ET0=1;
+ 226   5                error_flag=0;
+ 227   5                P2=0x80;P0|=0xff;P2=0;
+ 228   5                set_count=0;
+ 229   5                set_flag=0;
+ 230   5              }
+ 231   4            }
+ 232   3          }
+ 233   2          
+ 234   2        }
+ 235   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    830    ----
+C51 COMPILER V9.56.0.0   MAIN1                                                             03/23/2018 22:40:46 PAGE 5   
+
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     50       1
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      4    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

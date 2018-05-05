@@ -1,0 +1,4 @@
+".\Objects\mian.obj",
+".\Objects\iic.obj" 
+TO ".\Objects\自动售水机" 
+PRINT(".\Listings\自动售水机.m51") RAMSIZE(256) 
